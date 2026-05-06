@@ -8,6 +8,28 @@
 </head>
 <body>
   <section class="auth-page" id="authPage">
+    <header class="auth-header">
+      <div class="auth-brand">
+        <img src="assets/moph-seal.svg" alt="Ministry of Public Health logo">
+        <div>
+          <p>กระทรวงสาธารณสุข</p>
+          <strong>ระบบจัดการอุปกรณ์การแพทย์</strong>
+        </div>
+      </div>
+      <div class="auth-header-meta">
+        <button class="btn contact-admin" id="contactAdminBtn" type="button">ติดต่อผู้ดูแล</button>
+      </div>
+    </header>
+
+    <div class="memo-message hidden" id="contactMemo" role="dialog" aria-labelledby="contactMemoTitle">
+      <div class="memo-header">
+        <h2 id="contactMemoTitle">ติดต่อผู้ดูแล</h2>
+        <button class="memo-close" id="closeContactMemoBtn" type="button" aria-label="ปิดข้อความ">×</button>
+      </div>
+      <p>เบอร์ติดต่อ 0945542079 คุณณรงค์</p>
+      <p>Line ID: boybrandzaa89</p>
+    </div>
+
     <div class="auth-intro">
       <div class="ministry-logo">
         <img src="assets/moph-seal.svg" alt="Ministry of Public Health logo">
@@ -59,6 +81,14 @@
           </select>
         </label>
         <label>
+          Group
+          <select id="registerRole" required>
+            <option value="">เลือก Group</option>
+            <option value="admin">admin</option>
+            <option value="user">user</option>
+          </select>
+        </label>
+        <label>
           รหัสผ่าน
           <input id="registerPassword" type="password" autocomplete="new-password" minlength="4" required>
         </label>
@@ -88,103 +118,303 @@
       </div>
     </header>
 
-    <main class="app-shell">
-      <section class="panel form-panel" aria-labelledby="formTitle">
-        <h2 id="formTitle">เพิ่มอุปกรณ์ใหม่</h2>
-        <form id="equipmentForm">
-          <div class="form-grid">
-            <label>
-              ชื่ออุปกรณ์
-              <input id="nameInput" type="text" placeholder="เช่น เครื่องวัดความดัน" required>
-            </label>
-
-            <label>
-              รหัสอุปกรณ์
-              <input id="codeInput" type="text" placeholder="เช่น MED-001" required>
-            </label>
-
-            <label>
-              แผนก
-              <select id="departmentInput" required>
-                <option value="">เลือกแผนก</option>
-                <option>ห้องฉุกเฉิน</option>
-                <option>ห้องผ่าตัด</option>
-                <option>ผู้ป่วยใน</option>
-                <option>ห้องตรวจ</option>
-                <option>คลังอุปกรณ์</option>
-              </select>
-            </label>
-
-            <label>
-              สถานะ
-              <select id="statusInput" required>
-                <option>พร้อมใช้งาน</option>
-                <option>กำลังใช้งาน</option>
-                <option>รอซ่อม</option>
-                <option>ปลดระวาง</option>
-              </select>
-            </label>
-
-            <label>
-              วันที่ตรวจเช็กล่าสุด
-              <input id="checkedInput" type="date" required>
-            </label>
-
-            <label>
-              ผู้รับผิดชอบ
-              <input id="ownerInput" type="text" placeholder="เช่น คุณสมชาย" required>
-            </label>
-          </div>
-
-          <div class="form-actions">
-            <button class="btn primary" type="submit">บันทึกข้อมูล</button>
-            <button class="btn ghost" id="resetFormBtn" type="button">ล้างฟอร์ม</button>
-          </div>
-        </form>
-      </section>
-
-      <section class="panel table-panel" aria-labelledby="tableTitle">
-        <div class="toolbar">
-          <div>
-            <h2 id="tableTitle">รายการอุปกรณ์</h2>
-            <p id="resultText">แสดงรายการทั้งหมด</p>
-          </div>
-          <div class="filters">
-            <input id="searchInput" type="search" placeholder="ค้นหาชื่อ, รหัส, แผนก">
-            <select id="filterStatus">
-              <option value="all">ทุกสถานะ</option>
-              <option>พร้อมใช้งาน</option>
-              <option>กำลังใช้งาน</option>
-              <option>รอซ่อม</option>
-              <option>ปลดระวาง</option>
-            </select>
-          </div>
+    <div class="app-layout">
+      <aside class="side-nav" aria-label="เมนูหลัก">
+        <div class="side-nav-title">
+          <span>เมนูระบบ</span>
+          <strong>การจัดการ</strong>
         </div>
+        <nav>
+          <button class="page-tab active" type="button" data-page-target="equipmentPage">รายการอุปกรณ์</button>
+          <button class="page-tab" type="button" data-page-target="stockPage">คลังสินค้า</button>
+          <button class="page-tab admin-only hidden" type="button" data-page-target="userPage">User Management</button>
+        </nav>
+      </aside>
 
-        <div class="status-summary" id="statusSummary"></div>
+      <div class="content-area">
+        <main class="app-shell app-view" id="equipmentPage">
+          <section class="panel form-panel" aria-labelledby="formTitle">
+            <h2 id="formTitle">เพิ่มอุปกรณ์ใหม่</h2>
+            <form id="equipmentForm">
+              <div class="form-grid">
+                <label>
+                  ชื่ออุปกรณ์
+                  <input id="nameInput" type="text" placeholder="เช่น เครื่องวัดความดัน" required>
+                </label>
 
-        <div class="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>รหัส</th>
-                <th>ชื่ออุปกรณ์</th>
-                <th>แผนก</th>
-                <th>ตรวจล่าสุด</th>
-                <th>ผู้รับผิดชอบ</th>
-                <th>สถานะ</th>
-                <th>จัดการ</th>
-              </tr>
-            </thead>
-            <tbody id="equipmentTable"></tbody>
-          </table>
-        </div>
+                <label>
+                  รหัสอุปกรณ์
+                  <input id="codeInput" type="text" placeholder="เช่น MED-001" required>
+                </label>
 
-        <div class="empty-state" id="emptyState" hidden>
-          ยังไม่มีข้อมูลอุปกรณ์ ลองเพิ่มรายการแรกจากฟอร์มด้านบน
-        </div>
-      </section>
-    </main>
+                <label>
+                  แผนก
+                  <select id="departmentInput" required>
+                    <option value="">เลือกแผนก</option>
+                    <option>ห้องฉุกเฉิน</option>
+                    <option>ห้องผ่าตัด</option>
+                    <option>ผู้ป่วยใน</option>
+                    <option>ห้องตรวจ</option>
+                    <option>คลังอุปกรณ์</option>
+                  </select>
+                </label>
+
+                <label>
+                  สถานะ
+                  <select id="statusInput" required>
+                    <option>พร้อมใช้งาน</option>
+                    <option>กำลังใช้งาน</option>
+                    <option>รอซ่อม</option>
+                    <option>ปลดระวาง</option>
+                  </select>
+                </label>
+
+                <label>
+                  วันที่ตรวจเช็กล่าสุด
+                  <input id="checkedInput" type="date" required>
+                </label>
+
+                <label>
+                  ผู้รับผิดชอบ
+                  <input id="ownerInput" type="text" placeholder="เช่น คุณสมชาย" required>
+                </label>
+              </div>
+
+              <div class="form-actions">
+                <button class="btn primary" type="submit">บันทึกข้อมูล</button>
+                <button class="btn ghost" id="resetFormBtn" type="button">ล้างฟอร์ม</button>
+              </div>
+            </form>
+          </section>
+
+          <section class="panel table-panel" aria-labelledby="tableTitle">
+            <div class="toolbar">
+              <div>
+                <h2 id="tableTitle">รายการอุปกรณ์</h2>
+                <p id="resultText">แสดงรายการทั้งหมด</p>
+              </div>
+              <div class="filters">
+                <input id="searchInput" type="search" placeholder="ค้นหาชื่อ, รหัส, แผนก">
+                <select id="filterStatus">
+                  <option value="all">ทุกสถานะ</option>
+                  <option>พร้อมใช้งาน</option>
+                  <option>กำลังใช้งาน</option>
+                  <option>รอซ่อม</option>
+                  <option>ปลดระวาง</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="status-summary" id="statusSummary"></div>
+
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>รหัส</th>
+                    <th>ชื่ออุปกรณ์</th>
+                    <th>แผนก</th>
+                    <th>ตรวจล่าสุด</th>
+                    <th>ผู้รับผิดชอบ</th>
+                    <th>สถานะ</th>
+                    <th>จัดการ</th>
+                  </tr>
+                </thead>
+                <tbody id="equipmentTable"></tbody>
+              </table>
+            </div>
+
+            <div class="empty-state" id="emptyState" hidden>
+              ยังไม่มีข้อมูลอุปกรณ์ ลองเพิ่มรายการแรกจากฟอร์มด้านบน
+            </div>
+          </section>
+        </main>
+
+        <main class="app-shell app-view hidden" id="stockPage">
+          <section class="panel form-panel" aria-labelledby="stockFormTitle">
+            <h2 id="stockFormTitle">เพิ่มสินค้าในคลัง</h2>
+            <form id="stockForm">
+              <div class="form-grid">
+                <label>
+                  ชื่อสินค้า
+                  <input id="stockNameInput" type="text" placeholder="เช่น ถุงมือแพทย์" required>
+                </label>
+
+                <label>
+                  รหัสสินค้า
+                  <input id="stockCodeInput" type="text" placeholder="เช่น SUP-001" required>
+                </label>
+
+                <label>
+                  ประเภท
+                  <select id="stockCategoryInput" required>
+                    <option value="">เลือกประเภท</option>
+                    <option>วัสดุสิ้นเปลือง</option>
+                    <option>ยาและเวชภัณฑ์</option>
+                    <option>อะไหล่อุปกรณ์</option>
+                    <option>เครื่องมือสนับสนุน</option>
+                  </select>
+                </label>
+
+                <label>
+                  จำนวนคงเหลือ
+                  <input id="stockQuantityInput" type="number" min="0" step="1" required>
+                </label>
+
+                <label>
+                  จำนวนขั้นต่ำ
+                  <input id="stockMinimumInput" type="number" min="0" step="1" required>
+                </label>
+
+                <label>
+                  หน่วยนับ
+                  <input id="stockUnitInput" type="text" placeholder="เช่น กล่อง, ชิ้น, แพ็ก" required>
+                </label>
+
+                <label>
+                  ตำแหน่งจัดเก็บ
+                  <input id="stockLocationInput" type="text" placeholder="เช่น ชั้น A-01" required>
+                </label>
+
+                <label>
+                  วันที่อัปเดตล่าสุด
+                  <input id="stockUpdatedInput" type="date" required>
+                </label>
+              </div>
+
+              <div class="form-actions">
+                <button class="btn primary" type="submit">บันทึกสินค้า</button>
+                <button class="btn ghost" id="resetStockFormBtn" type="button">ล้างฟอร์ม</button>
+              </div>
+            </form>
+          </section>
+
+          <section class="panel table-panel" aria-labelledby="stockTableTitle">
+            <div class="toolbar">
+              <div>
+                <h2 id="stockTableTitle">จำนวนสินค้าคงเหลือในคลัง</h2>
+                <p id="stockResultText">แสดงรายการทั้งหมด</p>
+              </div>
+              <div class="filters">
+                <input id="stockSearchInput" type="search" placeholder="ค้นหาชื่อ, รหัส, ประเภท, ตำแหน่ง">
+                <select id="stockFilterStatus">
+                  <option value="all">ทุกสถานะสต็อก</option>
+                  <option value="low">ต่ำกว่าขั้นต่ำ</option>
+                  <option value="ok">เพียงพอ</option>
+                  <option value="empty">หมดสต็อก</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="stock-summary" id="stockSummary"></div>
+
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>รหัส</th>
+                    <th>ชื่อสินค้า</th>
+                    <th>ประเภท</th>
+                    <th>คงเหลือ</th>
+                    <th>ขั้นต่ำ</th>
+                    <th>ตำแหน่ง</th>
+                    <th>อัปเดตล่าสุด</th>
+                    <th>สถานะ</th>
+                    <th>จัดการ</th>
+                  </tr>
+                </thead>
+                <tbody id="stockTable"></tbody>
+              </table>
+            </div>
+
+            <div class="empty-state" id="stockEmptyState" hidden>
+              ยังไม่มีข้อมูลสินค้าในคลัง ลองเพิ่มรายการแรกจากฟอร์มด้านบน
+            </div>
+          </section>
+        </main>
+
+        <main class="app-shell app-view hidden" id="userPage">
+          <section class="panel form-panel" aria-labelledby="userFormTitle">
+            <h2 id="userFormTitle">จัดการข้อมูลผู้เข้าใช้งาน</h2>
+            <form id="userForm">
+              <div class="form-grid">
+                <label>
+                  ชื่อผู้ใช้งาน
+                  <input id="managedUserNameInput" type="text" autocomplete="off" required>
+                </label>
+
+                <label>
+                  แผนก
+                  <select id="managedUserDepartmentInput" required>
+                    <option value="">เลือกแผนก</option>
+                    <option>ห้องฉุกเฉิน</option>
+                    <option>ห้องผ่าตัด</option>
+                    <option>ผู้ป่วยใน</option>
+                    <option>ห้องตรวจ</option>
+                    <option>คลังอุปกรณ์</option>
+                    <option>ฝ่ายเครื่องมือแพทย์</option>
+                  </select>
+                </label>
+
+                <label>
+                  Group
+                  <select id="managedUserRoleInput" required>
+                    <option value="">เลือก Group</option>
+                    <option value="admin">admin</option>
+                    <option value="user">user</option>
+                  </select>
+                </label>
+
+                <label>
+                  รหัสผ่าน
+                  <input id="managedUserPasswordInput" type="password" autocomplete="new-password" minlength="4">
+                </label>
+              </div>
+
+              <p class="form-hint" id="userFormHint">กรอกรหัสผ่านเมื่อต้องการสร้างผู้ใช้ใหม่ หรือเปลี่ยนรหัสผ่านของผู้ใช้เดิม</p>
+
+              <div class="form-actions">
+                <button class="btn primary" type="submit">บันทึกผู้ใช้</button>
+                <button class="btn ghost" id="resetUserFormBtn" type="button">ล้างฟอร์ม</button>
+              </div>
+            </form>
+          </section>
+
+          <section class="panel table-panel" aria-labelledby="userTableTitle">
+            <div class="toolbar">
+              <div>
+                <h2 id="userTableTitle">รายชื่อผู้เข้าใช้งาน</h2>
+                <p id="userResultText">แสดงรายการทั้งหมด</p>
+              </div>
+              <div class="filters">
+                <input id="userSearchInput" type="search" placeholder="ค้นหาชื่อผู้ใช้งานหรือแผนก">
+              </div>
+            </div>
+
+            <div class="user-summary" id="userSummary"></div>
+
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>ชื่อผู้ใช้งาน</th>
+                    <th>แผนก</th>
+                    <th>Group</th>
+                    <th>สถานะ</th>
+                    <th>จัดการ</th>
+                  </tr>
+                </thead>
+                <tbody id="userTable"></tbody>
+              </table>
+            </div>
+
+            <div class="empty-state" id="userEmptyState" hidden>
+              ยังไม่มีข้อมูลผู้เข้าใช้งาน
+            </div>
+          </section>
+        </main>
+      </div>
+    </div>
   </section>
 
   <script src="script.js"></script>

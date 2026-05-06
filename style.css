@@ -40,13 +40,117 @@ select {
 .auth-page {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(320px, 420px);
+  grid-template-rows: auto 1fr;
   gap: 32px;
   min-height: 100vh;
-  padding: clamp(20px, 6vw, 72px);
+  padding: 20px clamp(20px, 6vw, 72px) clamp(20px, 6vw, 72px);
   background:
     radial-gradient(circle at 12% 18%, rgba(62, 166, 255, 0.22), transparent 28%),
     linear-gradient(135deg, #eef8ff 0%, #ffffff 46%, #dff1ff 100%);
   color: #0d2b45;
+}
+
+.auth-header {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  min-height: 74px;
+  padding: 12px 18px;
+  border: 1px solid rgba(11, 118, 209, 0.16);
+  border-radius: var(--radius);
+  background: rgba(255, 255, 255, 0.9);
+  box-shadow: 0 12px 28px rgba(31, 112, 184, 0.1);
+}
+
+.auth-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.auth-brand img {
+  width: 48px;
+  height: 48px;
+  object-fit: contain;
+  flex: 0 0 auto;
+}
+
+.auth-brand p,
+.auth-header-meta span {
+  margin: 0;
+  color: #47677f;
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.auth-brand strong {
+  display: block;
+  color: #0d2b45;
+  font-size: 1.05rem;
+  line-height: 1.25;
+}
+
+.auth-header-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #47677f;
+  white-space: nowrap;
+}
+
+.contact-admin {
+  border-color: #cfe4f6;
+  background: #f6fbff;
+  color: var(--primary-dark);
+}
+
+.memo-message {
+  grid-column: 1 / -1;
+  justify-self: end;
+  width: min(360px, 100%);
+  padding: 16px;
+  border: 1px solid #b9daf4;
+  border-radius: var(--radius);
+  background: #ffffff;
+  color: #0d2b45;
+  box-shadow: 0 18px 38px rgba(31, 112, 184, 0.16);
+}
+
+.memo-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.memo-header h2 {
+  margin-bottom: 0;
+}
+
+.memo-message p {
+  margin-bottom: 6px;
+  color: #344054;
+  font-weight: 700;
+}
+
+.memo-message p:last-child {
+  margin-bottom: 0;
+}
+
+.memo-close {
+  width: 32px;
+  height: 32px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #f8fafc;
+  color: #344054;
+  cursor: pointer;
+  font-size: 1.2rem;
+  line-height: 1;
 }
 
 .auth-intro {
@@ -150,6 +254,12 @@ select {
   color: var(--ok);
 }
 
+.form-hint {
+  margin: 12px 0 0;
+  color: var(--muted);
+  font-size: 0.88rem;
+}
+
 .app-header {
   display: flex;
   align-items: center;
@@ -221,11 +331,84 @@ h2 {
   line-height: 1;
 }
 
+.app-layout {
+  display: grid;
+  grid-template-columns: 180px minmax(0, 1fr);
+  gap: 20px;
+  width: 100%;
+  margin: 0;
+  align-items: start;
+}
+
+.side-nav {
+  position: sticky;
+  top: 0;
+  display: grid;
+  align-self: start;
+  gap: 10px;
+  width: 180px;
+  margin-top: 16px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-left: 0;
+  border-radius: 0 var(--radius) var(--radius) 0;
+  background: #ffffff;
+  box-shadow: 8px 8px 22px rgba(15, 23, 42, 0.05);
+}
+
+.side-nav-title {
+  display: grid;
+  gap: 2px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--line);
+}
+
+.side-nav-title span {
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.side-nav-title strong {
+  color: #12343b;
+  font-size: 0.98rem;
+}
+
+.side-nav nav {
+  display: grid;
+  gap: 8px;
+}
+
+.page-tab {
+  width: 100%;
+  min-height: 36px;
+  padding: 8px 10px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: #344054;
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: 800;
+  text-align: left;
+}
+
+.page-tab.active {
+  border-color: #b9daf4;
+  background: #e8f4ff;
+  color: var(--primary-dark);
+}
+
 .app-shell {
   display: grid;
   gap: 20px;
-  width: min(1180px, calc(100% - 32px));
-  margin: 24px auto 48px;
+  min-width: 0;
+}
+
+.content-area {
+  min-width: 0;
+  width: min(1180px, 100%);
+  padding: 24px 24px 48px 0;
 }
 
 .panel {
@@ -341,11 +524,40 @@ select:focus {
   margin-bottom: 16px;
 }
 
+.stock-summary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.user-summary {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
 .summary-item {
   padding: 12px;
   border: 1px solid var(--line);
   border-radius: var(--radius);
   background: #fbfcfe;
+}
+
+.summary-item.warning {
+  border-color: #fedf89;
+  background: #fffbeb;
+}
+
+.summary-item.danger {
+  border-color: #fecdca;
+  background: #fff4f2;
+}
+
+.summary-item.ok {
+  border-color: #abefc6;
+  background: #f0fdf4;
 }
 
 .summary-item span {
@@ -418,8 +630,34 @@ tbody tr:last-child td {
   color: #475467;
 }
 
+.badge.stock-ok {
+  background: #dcfae6;
+  color: var(--ok);
+}
+
+.badge.stock-low {
+  background: #fef0c7;
+  color: var(--warning);
+}
+
+.badge.stock-empty {
+  background: #fee4e2;
+  color: var(--danger);
+}
+
+.badge.role-admin {
+  background: #fef0c7;
+  color: var(--warning);
+}
+
+.badge.role-user {
+  background: #e8f4ff;
+  color: var(--primary-dark);
+}
+
 .row-actions {
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
 }
 
@@ -436,6 +674,16 @@ tbody tr:last-child td {
     grid-template-columns: 1fr;
   }
 
+  .auth-header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .auth-header-meta {
+    flex-wrap: wrap;
+    white-space: normal;
+  }
+
   .app-header,
   .toolbar,
   .header-actions {
@@ -443,8 +691,36 @@ tbody tr:last-child td {
     flex-direction: column;
   }
 
+  .app-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .side-nav {
+    position: static;
+    min-height: auto;
+    width: auto;
+    margin: 16px 16px 0;
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+  }
+
+  .content-area {
+    width: 100%;
+    padding: 24px 16px 48px;
+  }
+
+  .side-nav nav {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .page-tab {
+    text-align: center;
+  }
+
   .form-grid,
-  .status-summary {
+  .status-summary,
+  .stock-summary,
+  .user-summary {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
@@ -460,7 +736,14 @@ tbody tr:last-child td {
   }
 
   .form-grid,
-  .status-summary {
+  .status-summary,
+  .stock-summary,
+  .user-summary {
+    grid-template-columns: 1fr;
+  }
+
+  .side-nav nav {
+    flex-direction: column;
     grid-template-columns: 1fr;
   }
 
