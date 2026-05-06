@@ -1,73 +1,4 @@
-const STORAGE_KEY = "medical-equipment-list";
-const USERS_KEY = "medical-equipment-users";
 const SESSION_KEY = "medical-equipment-session";
-const STOCK_KEY = "medical-equipment-stock";
-
-const defaultEquipment = [
-  {
-    id: crypto.randomUUID(),
-    code: "MED-001",
-    name: "เครื่องวัดความดัน",
-    department: "ห้องตรวจ",
-    status: "พร้อมใช้งาน",
-    checkedDate: "2026-05-01",
-    owner: "คุณสมชาย"
-  },
-  {
-    id: crypto.randomUUID(),
-    code: "MED-002",
-    name: "เครื่องช่วยหายใจ",
-    department: "ห้องฉุกเฉิน",
-    status: "กำลังใช้งาน",
-    checkedDate: "2026-04-28",
-    owner: "คุณมาลี"
-  },
-  {
-    id: crypto.randomUUID(),
-    code: "MED-003",
-    name: "เครื่องติดตามสัญญาณชีพ",
-    department: "ผู้ป่วยใน",
-    status: "รอซ่อม",
-    checkedDate: "2026-04-18",
-    owner: "คุณอนันต์"
-  }
-];
-
-const defaultStockItems = [
-  {
-    id: crypto.randomUUID(),
-    code: "SUP-001",
-    name: "ถุงมือแพทย์",
-    category: "วัสดุสิ้นเปลือง",
-    quantity: 120,
-    minimum: 50,
-    unit: "กล่อง",
-    location: "ชั้น A-01",
-    updatedDate: "2026-05-04"
-  },
-  {
-    id: crypto.randomUUID(),
-    code: "SUP-002",
-    name: "หน้ากากอนามัย",
-    category: "วัสดุสิ้นเปลือง",
-    quantity: 35,
-    minimum: 80,
-    unit: "กล่อง",
-    location: "ชั้น A-02",
-    updatedDate: "2026-05-03"
-  },
-  {
-    id: crypto.randomUUID(),
-    code: "SPP-001",
-    name: "สายออกซิเจน",
-    category: "อะไหล่อุปกรณ์",
-    quantity: 0,
-    minimum: 15,
-    unit: "เส้น",
-    location: "ตู้ B-04",
-    updatedDate: "2026-04-30"
-  }
-];
 
 const authPage = document.querySelector("#authPage");
 const appPage = document.querySelector("#appPage");
@@ -139,87 +70,123 @@ const userFields = {
   password: document.querySelector("#managedUserPasswordInput")
 };
 
-let equipment = loadEquipment();
-let stockItems = loadStockItems();
-let managedUsers = loadUsers();
+let equipment = [];
+let stockItems = [];
+let managedUsers = [];
 let editingId = null;
 let editingStockId = null;
 let editingUserId = null;
 
-setupAuth();
-setupContactMemo();
-setupPageNavigation();
-setupEquipmentEvents();
-setupStockEvents();
-setupUserEvents();
-showPageFromSession();
-clearForm();
-clearStockForm();
-clearUserForm();
-render();
-renderStock();
-renderUsers();
+initializeApp();
+
+async function initializeApp() {
+  setupAuth();
+  setupContactMemo();
+  setupPageNavigation();
+  setupEquipmentEvents();
+  setupStockEvents();
+  setupUserEvents();
+  clearForm();
+  clearStockForm();
+  clearUserForm();
+  await loadAppData();
+  showPageFromSession();
+}
+
+async function loadAppData() {
+  try {
+    const [equipmentData, stockData] = await Promise.all([
+      apiRequest("/api/equipment"),
+      apiRequest("/api/stock-items")
+    ]);
+
+    equipment = equipmentData;
+    stockItems = stockData;
+
+    if (isCurrentUserAdmin()) {
+      managedUsers = await apiRequest("/api/users");
+    } else {
+      managedUsers = [];
+    }
+  } catch (error) {
+    alert(`ไม่สามารถเชื่อมต่อ API ได้: ${error.message}`);
+  }
+
+  render();
+  renderStock();
+  renderUsers();
+}
+
+async function apiRequest(path, options = {}) {
+  const response = await fetch(path, {
+    headers: {
+      "Content-Type": "application/json",
+      "x-user-role": getSession()?.role || "",
+      ...options.headers
+    },
+    ...options
+  });
+
+  if (response.status === 204) {
+    return null;
+  }
+
+  const data = await response.json().catch(() => ({}));
+
+  if (!response.ok) {
+    throw new Error(data.message || "API request failed");
+  }
+
+  return data;
+}
 
 function setupAuth() {
   showLoginBtn.addEventListener("click", () => showAuthForm("login"));
   showRegisterBtn.addEventListener("click", () => showAuthForm("register"));
   logoutBtn.addEventListener("click", logout);
 
-  registerForm.addEventListener("submit", (event) => {
+  registerForm.addEventListener("submit", async (event) => {
     event.preventDefault();
 
-    const name = document.querySelector("#registerName").value.trim();
-    const department = document.querySelector("#registerDepartment").value;
-    const role = document.querySelector("#registerRole").value;
-    const password = document.querySelector("#registerPassword").value;
-    const users = loadUsers();
-    const exists = users.some((user) => normalizeName(user.name) === normalizeName(name));
+    try {
+      const user = await apiRequest("/api/register", {
+        method: "POST",
+        body: JSON.stringify({
+          name: document.querySelector("#registerName").value.trim(),
+          department: document.querySelector("#registerDepartment").value,
+          role: document.querySelector("#registerRole").value,
+          password: document.querySelector("#registerPassword").value
+        })
+      });
 
-    if (exists) {
-      showMessage(registerMessage, "ชื่อนี้ลงทะเบียนแล้ว กรุณาใช้ชื่ออื่น");
-      return;
+      registerForm.reset();
+      showAuthForm("login");
+      showMessage(loginMessage, "สร้างบัญชีสำเร็จ เข้าสู่ระบบได้เลย", true);
+      document.querySelector("#loginName").value = user.name;
+    } catch (error) {
+      showMessage(registerMessage, "ไม่สามารถสร้างบัญชีได้ หรือชื่อนี้มีอยู่แล้ว");
     }
-
-    const user = {
-      id: crypto.randomUUID(),
-      name,
-      department,
-      role,
-      password
-    };
-
-    users.push(user);
-    saveUsers(users);
-    managedUsers = users;
-    renderUsers();
-    registerForm.reset();
-    showAuthForm("login");
-    showMessage(loginMessage, "สร้างบัญชีสำเร็จ เข้าสู่ระบบได้เลย", true);
-    document.querySelector("#loginName").value = name;
   });
 
-  loginForm.addEventListener("submit", (event) => {
+  loginForm.addEventListener("submit", async (event) => {
     event.preventDefault();
 
-    const name = document.querySelector("#loginName").value.trim();
-    const password = document.querySelector("#loginPassword").value;
-    const user = loadUsers().find((current) => {
-      return normalizeName(current.name) === normalizeName(name) && current.password === password;
-    });
+    try {
+      const user = await apiRequest("/api/login", {
+        method: "POST",
+        body: JSON.stringify({
+          name: document.querySelector("#loginName").value.trim(),
+          password: document.querySelector("#loginPassword").value
+        })
+      });
 
-    if (!user) {
+      sessionStorage.setItem(SESSION_KEY, JSON.stringify(user));
+      loginForm.reset();
+      await loadAppData();
+      showApp(user);
+    } catch (error) {
       showMessage(loginMessage, "ชื่อผู้ใช้งานหรือรหัสผ่านไม่ถูกต้อง");
-      return;
     }
-
-    localStorage.setItem(SESSION_KEY, JSON.stringify({
-      id: user.id,
-      name: user.name,
-      department: user.department,
-      role: getUserRole(user)
-    }));
-    loginForm.reset();
-    showApp(user);
   });
 }
 
@@ -234,11 +201,10 @@ function setupContactMemo() {
 }
 
 function setupEquipmentEvents() {
-  form.addEventListener("submit", (event) => {
+  form.addEventListener("submit", async (event) => {
     event.preventDefault();
 
     const item = {
-      id: editingId || crypto.randomUUID(),
       code: fields.code.value.trim(),
       name: fields.name.value.trim(),
       department: fields.department.value,
@@ -247,15 +213,26 @@ function setupEquipmentEvents() {
       owner: fields.owner.value.trim()
     };
 
-    if (editingId) {
-      equipment = equipment.map((current) => current.id === editingId ? item : current);
-    } else {
-      equipment.unshift(item);
-    }
+    try {
+      if (editingId) {
+        const updated = await apiRequest(`/api/equipment/${editingId}`, {
+          method: "PUT",
+          body: JSON.stringify(item)
+        });
+        equipment = equipment.map((current) => current.id === editingId ? updated : current);
+      } else {
+        const created = await apiRequest("/api/equipment", {
+          method: "POST",
+          body: JSON.stringify(item)
+        });
+        equipment.unshift(created);
+      }
 
-    saveEquipment();
-    clearForm();
-    render();
+      clearForm();
+      render();
+    } catch (error) {
+      alert(`ไม่สามารถบันทึกข้อมูลอุปกรณ์ได้: ${error.message}`);
+    }
   });
 
   resetFormBtn.addEventListener("click", clearForm);
@@ -269,7 +246,7 @@ function setupEquipmentEvents() {
       return;
     }
 
-    const id = button.dataset.id;
+    const id = Number(button.dataset.id);
 
     if (button.dataset.action === "edit") {
       startEdit(id);
@@ -283,12 +260,16 @@ function setupEquipmentEvents() {
 
 function setupPageNavigation() {
   pageTabs.forEach((tab) => {
-    tab.addEventListener("click", () => {
+    tab.addEventListener("click", async () => {
       const targetId = tab.dataset.pageTarget;
 
       if (targetId === "userPage" && !isCurrentUserAdmin()) {
         showAppPage("equipmentPage");
         return;
+      }
+
+      if (targetId === "userPage") {
+        await refreshUsers();
       }
 
       showAppPage(targetId);
@@ -318,11 +299,10 @@ function updateAdminAccess() {
 }
 
 function setupStockEvents() {
-  stockForm.addEventListener("submit", (event) => {
+  stockForm.addEventListener("submit", async (event) => {
     event.preventDefault();
 
     const item = {
-      id: editingStockId || crypto.randomUUID(),
       code: stockFields.code.value.trim(),
       name: stockFields.name.value.trim(),
       category: stockFields.category.value,
@@ -333,15 +313,26 @@ function setupStockEvents() {
       updatedDate: stockFields.updatedDate.value
     };
 
-    if (editingStockId) {
-      stockItems = stockItems.map((current) => current.id === editingStockId ? item : current);
-    } else {
-      stockItems.unshift(item);
-    }
+    try {
+      if (editingStockId) {
+        const updated = await apiRequest(`/api/stock-items/${editingStockId}`, {
+          method: "PUT",
+          body: JSON.stringify(item)
+        });
+        stockItems = stockItems.map((current) => current.id === editingStockId ? updated : current);
+      } else {
+        const created = await apiRequest("/api/stock-items", {
+          method: "POST",
+          body: JSON.stringify(item)
+        });
+        stockItems.unshift(created);
+      }
 
-    saveStockItems();
-    clearStockForm();
-    renderStock();
+      clearStockForm();
+      renderStock();
+    } catch (error) {
+      alert(`ไม่สามารถบันทึกสินค้าได้: ${error.message}`);
+    }
   });
 
   resetStockFormBtn.addEventListener("click", clearStockForm);
@@ -355,7 +346,7 @@ function setupStockEvents() {
       return;
     }
 
-    const id = button.dataset.id;
+    const id = Number(button.dataset.id);
     const action = button.dataset.action;
 
     if (action === "stock-edit") {
@@ -377,51 +368,43 @@ function setupStockEvents() {
 }
 
 function setupUserEvents() {
-  userForm.addEventListener("submit", (event) => {
+  userForm.addEventListener("submit", async (event) => {
     event.preventDefault();
 
-    const name = userFields.name.value.trim();
-    const department = userFields.department.value;
-    const role = userFields.role.value;
     const password = userFields.password.value;
-    const existingUser = managedUsers.find((user) => user.id === editingUserId);
-    const duplicate = managedUsers.some((user) => {
-      return user.id !== editingUserId && normalizeName(user.name) === normalizeName(name);
-    });
-
-    if (duplicate) {
-      alert("ชื่อนี้มีอยู่ในระบบแล้ว กรุณาใช้ชื่ออื่น");
-      return;
-    }
+    const user = {
+      name: userFields.name.value.trim(),
+      department: userFields.department.value,
+      role: userFields.role.value,
+      password
+    };
 
     if (!editingUserId && password.length < 4) {
       alert("กรุณากรอกรหัสผ่านอย่างน้อย 4 ตัวอักษรสำหรับผู้ใช้ใหม่");
       return;
     }
 
-    if (editingUserId && !existingUser) {
+    try {
+      if (editingUserId) {
+        const updated = await apiRequest(`/api/users/${editingUserId}`, {
+          method: "PUT",
+          body: JSON.stringify(user)
+        });
+        managedUsers = managedUsers.map((current) => current.id === editingUserId ? updated : current);
+        syncCurrentSessionUser(updated);
+      } else {
+        const created = await apiRequest("/api/users", {
+          method: "POST",
+          body: JSON.stringify(user)
+        });
+        managedUsers.unshift(created);
+      }
+
       clearUserForm();
-      return;
+      renderUsers();
+    } catch (error) {
+      alert(`ไม่สามารถบันทึกผู้ใช้ได้: ${error.message}`);
     }
-
-    const user = {
-      id: editingUserId || crypto.randomUUID(),
-      name,
-      department,
-      role,
-      password: password || existingUser?.password || ""
-    };
-
-    if (editingUserId) {
-      managedUsers = managedUsers.map((current) => current.id === editingUserId ? user : current);
-    } else {
-      managedUsers.unshift(user);
-    }
-
-    saveUsers(managedUsers);
-    syncCurrentSessionUser(user);
-    clearUserForm();
-    renderUsers();
   });
 
   resetUserFormBtn.addEventListener("click", clearUserForm);
@@ -434,7 +417,7 @@ function setupUserEvents() {
       return;
     }
 
-    const id = button.dataset.id;
+    const id = Number(button.dataset.id);
 
     if (button.dataset.action === "user-edit") {
       startUserEdit(id);
@@ -483,14 +466,15 @@ function showApp(user) {
 }
 
 function logout() {
-  localStorage.removeItem(SESSION_KEY);
+  sessionStorage.removeItem(SESSION_KEY);
+  managedUsers = [];
   clearForm();
   showAuthForm("login");
   showAuth();
 }
 
 function getSession() {
-  const saved = localStorage.getItem(SESSION_KEY);
+  const saved = sessionStorage.getItem(SESSION_KEY);
 
   if (!saved) {
     return null;
@@ -499,78 +483,28 @@ function getSession() {
   try {
     return JSON.parse(saved);
   } catch {
-    localStorage.removeItem(SESSION_KEY);
+    sessionStorage.removeItem(SESSION_KEY);
     return null;
   }
 }
 
 function isCurrentUserAdmin() {
-  const session = getSession();
-
-  if (!session) {
-    return false;
-  }
-
-  if (session.role) {
-    return session.role === "admin";
-  }
-
-  const user = loadUsers().find((current) => current.id === session.id);
-  return getUserRole(user || {}) === "admin";
+  return getSession()?.role === "admin";
 }
 
-function loadUsers() {
-  const saved = localStorage.getItem(USERS_KEY);
-
-  if (!saved) {
-    return [];
+async function refreshUsers() {
+  if (!isCurrentUserAdmin()) {
+    managedUsers = [];
+    renderUsers();
+    return;
   }
 
   try {
-    return JSON.parse(saved);
-  } catch {
-    return [];
+    managedUsers = await apiRequest("/api/users");
+    renderUsers();
+  } catch (error) {
+    alert(`ไม่สามารถโหลดข้อมูลผู้ใช้ได้: ${error.message}`);
   }
-}
-
-function saveUsers(users) {
-  localStorage.setItem(USERS_KEY, JSON.stringify(users));
-}
-
-function loadEquipment() {
-  const saved = localStorage.getItem(STORAGE_KEY);
-
-  if (!saved) {
-    return defaultEquipment;
-  }
-
-  try {
-    return JSON.parse(saved);
-  } catch {
-    return defaultEquipment;
-  }
-}
-
-function saveEquipment() {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(equipment));
-}
-
-function loadStockItems() {
-  const saved = localStorage.getItem(STOCK_KEY);
-
-  if (!saved) {
-    return defaultStockItems;
-  }
-
-  try {
-    return JSON.parse(saved);
-  } catch {
-    return defaultStockItems;
-  }
-}
-
-function saveStockItems() {
-  localStorage.setItem(STOCK_KEY, JSON.stringify(stockItems));
 }
 
 function render() {
@@ -789,7 +723,7 @@ function startEdit(id) {
   fields.code.value = item.code;
   fields.department.value = item.department;
   fields.status.value = item.status;
-  fields.checkedDate.value = item.checkedDate;
+  fields.checkedDate.value = dateOnly(item.checkedDate);
   fields.owner.value = item.owner;
   form.querySelector(".primary").textContent = "อัปเดตข้อมูล";
   fields.name.focus();
@@ -810,7 +744,7 @@ function startStockEdit(id) {
   stockFields.minimum.value = item.minimum;
   stockFields.unit.value = item.unit;
   stockFields.location.value = item.location;
-  stockFields.updatedDate.value = item.updatedDate;
+  stockFields.updatedDate.value = dateOnly(item.updatedDate);
   stockForm.querySelector(".primary").textContent = "อัปเดตสินค้า";
   stockFields.name.focus();
 }
@@ -832,7 +766,7 @@ function startUserEdit(id) {
   userFields.name.focus();
 }
 
-function deleteItem(id) {
+async function deleteItem(id) {
   if (!isCurrentUserAdmin()) {
     alert("เฉพาะผู้ดูแลระบบเท่านั้นที่สามารถลบข้อมูลได้");
     return;
@@ -844,12 +778,16 @@ function deleteItem(id) {
     return;
   }
 
-  equipment = equipment.filter((current) => current.id !== id);
-  saveEquipment();
-  render();
+  try {
+    await apiRequest(`/api/equipment/${id}`, { method: "DELETE" });
+    equipment = equipment.filter((current) => current.id !== id);
+    render();
+  } catch (error) {
+    alert(`ไม่สามารถลบข้อมูลได้: ${error.message}`);
+  }
 }
 
-function deleteStockItem(id) {
+async function deleteStockItem(id) {
   if (!isCurrentUserAdmin()) {
     alert("เฉพาะผู้ดูแลระบบเท่านั้นที่สามารถลบข้อมูลได้");
     return;
@@ -861,12 +799,16 @@ function deleteStockItem(id) {
     return;
   }
 
-  stockItems = stockItems.filter((current) => current.id !== id);
-  saveStockItems();
-  renderStock();
+  try {
+    await apiRequest(`/api/stock-items/${id}`, { method: "DELETE" });
+    stockItems = stockItems.filter((current) => current.id !== id);
+    renderStock();
+  } catch (error) {
+    alert(`ไม่สามารถลบสินค้าได้: ${error.message}`);
+  }
 }
 
-function deleteUser(id) {
+async function deleteUser(id) {
   const user = managedUsers.find((current) => current.id === id);
   const session = getSession();
 
@@ -883,13 +825,17 @@ function deleteUser(id) {
     return;
   }
 
-  managedUsers = managedUsers.filter((current) => current.id !== id);
-  saveUsers(managedUsers);
-  clearUserForm();
-  renderUsers();
+  try {
+    await apiRequest(`/api/users/${id}`, { method: "DELETE" });
+    managedUsers = managedUsers.filter((current) => current.id !== id);
+    clearUserForm();
+    renderUsers();
+  } catch (error) {
+    alert(`ไม่สามารถลบผู้ใช้ได้: ${error.message}`);
+  }
 }
 
-function adjustStock(id, direction) {
+async function adjustStock(id, direction) {
   const item = stockItems.find((current) => current.id === id);
 
   if (!item) {
@@ -915,20 +861,16 @@ function adjustStock(id, direction) {
     return;
   }
 
-  stockItems = stockItems.map((item) => {
-    if (item.id !== id) {
-      return item;
-    }
-
-    return {
-      ...item,
-      quantity: item.quantity + (amount * direction),
-      updatedDate: getTodayValue()
-    };
-  });
-
-  saveStockItems();
-  renderStock();
+  try {
+    const updated = await apiRequest(`/api/stock-items/${id}/adjust`, {
+      method: "PATCH",
+      body: JSON.stringify({ amount: amount * direction })
+    });
+    stockItems = stockItems.map((current) => current.id === id ? updated : current);
+    renderStock();
+  } catch (error) {
+    alert(`ไม่สามารถปรับจำนวนสินค้าได้: ${error.message}`);
+  }
 }
 
 function clearForm() {
@@ -960,14 +902,7 @@ function syncCurrentSessionUser(user) {
     return;
   }
 
-  const updatedSession = {
-    id: user.id,
-    name: user.name,
-    department: user.department,
-    role: getUserRole(user)
-  };
-
-  localStorage.setItem(SESSION_KEY, JSON.stringify(updatedSession));
+  sessionStorage.setItem(SESSION_KEY, JSON.stringify(user));
   currentUserName.textContent = user.name;
   currentUserDepartment.textContent = user.department;
   updateAdminAccess();
@@ -1028,6 +963,10 @@ function getStockStatusText(status) {
 
 function getTodayValue() {
   return new Date().toISOString().slice(0, 10);
+}
+
+function dateOnly(value) {
+  return String(value || "").slice(0, 10);
 }
 
 function formatDate(value) {
