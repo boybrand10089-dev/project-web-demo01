@@ -5,7 +5,10 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "dev": "node --watch server.js"
+    "dev": "node --watch server.js",
+    "db:fix-charset": "node scripts/fix-local-charset.js",
+    "db:create-logmovement": "node scripts/create-logmovement.js",
+    "db:add-initial-quantity": "node scripts/add-initial-quantity.js"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",

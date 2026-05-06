@@ -48,3 +48,23 @@ http://localhost:3000
 - ข้อมูลผู้ใช้ อุปกรณ์ และคลังสินค้า ถูกเก็บใน MySQL แล้ว
 - session ผู้ใช้ที่ login อยู่เก็บใน `sessionStorage` ของ browser
 - GitHub Pages รัน backend/MySQL ไม่ได้ ถ้าจะ deploy จริงต้องใช้ hosting ที่รัน Node.js และต่อ MySQL ได้
+
+## คำสั่งดูแลฐานข้อมูล
+
+ถ้าเครื่อง MySQL local แสดงภาษาไทยเพี้ยน ให้รัน:
+
+```bash
+npm run db:fix-charset
+```
+
+ถ้าต้องสร้างตารางประวัติรับเข้า/เบิกออกของคลังสินค้า ให้รัน:
+
+```bash
+npm run db:create-logmovement
+```
+
+ถ้าต้องเพิ่มคอลัมน์จำนวนรับเข้าครั้งแรกในตารางคลังสินค้า ให้รัน:
+
+```bash
+npm run db:add-initial-quantity
+```

@@ -121,6 +121,8 @@ async function apiRequest(path, options = {}) {
   const response = await fetch(path, {
     headers: {
       "Content-Type": "application/json",
+      "x-user-id": getSession()?.id || "",
+      "x-user-name": getSession()?.name || "",
       "x-user-role": getSession()?.role || "",
       ...options.headers
     },
@@ -154,7 +156,7 @@ function setupAuth() {
         body: JSON.stringify({
           name: document.querySelector("#registerName").value.trim(),
           department: document.querySelector("#registerDepartment").value,
-          role: document.querySelector("#registerRole").value,
+          role: "user",
           password: document.querySelector("#registerPassword").value
         })
       });
@@ -306,6 +308,9 @@ function setupStockEvents() {
       code: stockFields.code.value.trim(),
       name: stockFields.name.value.trim(),
       category: stockFields.category.value,
+      initialQuantity: editingStockId
+        ? stockItems.find((current) => current.id === editingStockId)?.initialQuantity || Number(stockFields.quantity.value)
+        : Number(stockFields.quantity.value),
       quantity: Number(stockFields.quantity.value),
       minimum: Number(stockFields.minimum.value),
       unit: stockFields.unit.value.trim(),

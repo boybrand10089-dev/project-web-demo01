@@ -15,6 +15,7 @@ const pool = mysql.createPool({
   user: process.env.DB_USER || "root",
   password: process.env.DB_PASSWORD || "",
   database: process.env.DB_NAME || "medical_equipment_manager",
+  charset: "utf8",
   waitForConnections: true,
   connectionLimit: 10,
   dateStrings: true
@@ -22,6 +23,10 @@ const pool = mysql.createPool({
 
 app.use(cors());
 app.use(express.json());
+app.use((req, res, next) => {
+  res.charset = "utf-8";
+  next();
+});
 
 function requireAdmin(req, res, next) {
   if (req.header("x-user-role") !== "admin") {
@@ -58,6 +63,7 @@ function stockRow(row) {
     code: row.code,
     name: row.name,
     category: row.category,
+    initialQuantity: row.initial_quantity,
     quantity: row.quantity,
     minimum: row.minimum_quantity,
     unit: row.unit,
@@ -66,8 +72,47 @@ function stockRow(row) {
   };
 }
 
+function movementRow(row) {
+  return {
+    id: row.id,
+    stockItemId: row.stock_item_id,
+    stockCode: row.stock_code,
+    stockName: row.stock_name,
+    movementType: row.movement_type,
+    quantity: row.quantity,
+    quantityBefore: row.quantity_before,
+    quantityAfter: row.quantity_after,
+    performedById: row.performed_by_id,
+    performedByName: row.performed_by_name,
+    performedByRole: row.performed_by_role,
+    note: row.note,
+    createdAt: row.created_at
+  };
+}
+
 function normalizeRole(role) {
   return role === "admin" ? "admin" : "user";
+}
+
+function initialQuantityFromBody(body) {
+  const initialQuantity = Number(body.initialQuantity);
+  const quantity = Number(body.quantity);
+
+  if (Number.isFinite(initialQuantity) && initialQuantity > 0) {
+    return initialQuantity;
+  }
+
+  return Number.isFinite(quantity) ? quantity : 0;
+}
+
+function currentActor(req) {
+  const id = Number(req.header("x-user-id"));
+
+  return {
+    id: Number.isInteger(id) && id > 0 ? id : null,
+    name: req.header("x-user-name") || null,
+    role: normalizeRole(req.header("x-user-role"))
+  };
 }
 
 app.get("/api/health", async (_req, res) => {
@@ -243,12 +288,22 @@ app.get("/api/stock-items", async (_req, res, next) => {
   }
 });
 
+app.get("/api/logmovement", async (_req, res, next) => {
+  try {
+    const [rows] = await pool.query("SELECT * FROM logmovement ORDER BY created_at DESC, id DESC");
+    res.json(rows.map(movementRow));
+  } catch (error) {
+    next(error);
+  }
+});
+
 app.post("/api/stock-items", async (req, res, next) => {
   try {
     const { code, name, category, quantity, minimum, unit, location, updatedDate } = req.body;
+    const initialQuantity = initialQuantityFromBody(req.body);
     const [result] = await pool.execute(
-      "INSERT INTO stock_items (code, name, category, quantity, minimum_quantity, unit, location, updated_date) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-      [code, name, category, quantity, minimum, unit, location, updatedDate]
+      "INSERT INTO stock_items (code, name, category, initial_quantity, quantity, minimum_quantity, unit, location, updated_date) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+      [code, name, category, initialQuantity, quantity, minimum, unit, location, updatedDate]
     );
     const [rows] = await pool.execute("SELECT * FROM stock_items WHERE id = ?", [result.insertId]);
     res.status(201).json(stockRow(rows[0]));
@@ -260,9 +315,10 @@ app.post("/api/stock-items", async (req, res, next) => {
 app.put("/api/stock-items/:id", async (req, res, next) => {
   try {
     const { code, name, category, quantity, minimum, unit, location, updatedDate } = req.body;
+    const initialQuantity = Number(req.body.initialQuantity ?? quantity ?? 0);
     await pool.execute(
-      "UPDATE stock_items SET code = ?, name = ?, category = ?, quantity = ?, minimum_quantity = ?, unit = ?, location = ?, updated_date = ? WHERE id = ?",
-      [code, name, category, quantity, minimum, unit, location, updatedDate, req.params.id]
+      "UPDATE stock_items SET code = ?, name = ?, category = ?, initial_quantity = ?, quantity = ?, minimum_quantity = ?, unit = ?, location = ?, updated_date = ? WHERE id = ?",
+      [code, name, category, initialQuantity, quantity, minimum, unit, location, updatedDate, req.params.id]
     );
     const [rows] = await pool.execute("SELECT * FROM stock_items WHERE id = ?", [req.params.id]);
     res.json(stockRow(rows[0]));
@@ -272,6 +328,8 @@ app.put("/api/stock-items/:id", async (req, res, next) => {
 });
 
 app.patch("/api/stock-items/:id/adjust", async (req, res, next) => {
+  const connection = await pool.getConnection();
+
   try {
     const amount = Number(req.body.amount);
 
@@ -279,27 +337,67 @@ app.patch("/api/stock-items/:id/adjust", async (req, res, next) => {
       return res.status(400).json({ message: "Amount must be an integer" });
     }
 
-    const [currentRows] = await pool.execute("SELECT * FROM stock_items WHERE id = ?", [req.params.id]);
+    await connection.beginTransaction();
+
+    const [currentRows] = await connection.execute("SELECT * FROM stock_items WHERE id = ? FOR UPDATE", [req.params.id]);
     const current = currentRows[0];
 
     if (!current) {
+      await connection.rollback();
       return res.status(404).json({ message: "Stock item not found" });
     }
 
     const nextQuantity = current.quantity + amount;
 
     if (nextQuantity < 0) {
+      await connection.rollback();
       return res.status(400).json({ message: "Quantity cannot be negative" });
     }
 
-    await pool.execute(
+    await connection.execute(
       "UPDATE stock_items SET quantity = ?, updated_date = CURDATE() WHERE id = ?",
       [nextQuantity, req.params.id]
     );
-    const [rows] = await pool.execute("SELECT * FROM stock_items WHERE id = ?", [req.params.id]);
+
+    const actor = currentActor(req);
+    await connection.execute(
+      `INSERT INTO logmovement (
+        stock_item_id,
+        stock_code,
+        stock_name,
+        movement_type,
+        quantity,
+        quantity_before,
+        quantity_after,
+        performed_by_id,
+        performed_by_name,
+        performed_by_role,
+        note
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        current.id,
+        current.code,
+        current.name,
+        amount > 0 ? "IN" : "OUT",
+        Math.abs(amount),
+        current.quantity,
+        nextQuantity,
+        actor.id,
+        actor.name,
+        actor.role,
+        req.body.note || null
+      ]
+    );
+
+    await connection.commit();
+
+    const [rows] = await connection.execute("SELECT * FROM stock_items WHERE id = ?", [req.params.id]);
     res.json(stockRow(rows[0]));
   } catch (error) {
+    await connection.rollback();
     next(error);
+  } finally {
+    connection.release();
   }
 });
 
