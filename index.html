@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ระบบจัดการอุปกรณ์การแพทย์</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <section class="auth-page" id="authPage">
+    <div class="auth-intro">
+      <div class="ministry-logo">
+        <img src="assets/moph-seal.svg" alt="Ministry of Public Health logo">
+      </div>
+      <p class="eyebrow">Medical Equipment Manager</p>
+      <h1>เข้าสู่ระบบจัดการอุปกรณ์การแพทย์</h1>
+      <p>ลงทะเบียนด้วยชื่อ แผนก และรหัสผ่าน จากนั้นเข้าสู่ระบบเพื่อจัดการข้อมูลอุปกรณ์</p>
+      <div class="auth-visual" aria-label="Medical equipment in a bright hospital workspace">
+        <img src="assets/medical-login.png" alt="Medical equipment in a bright blue and white hospital workspace">
+      </div>
+    </div>
+
+    <div class="auth-card">
+      <div class="auth-tabs" role="tablist" aria-label="เลือกฟอร์มเข้าใช้งาน">
+        <button class="auth-tab active" id="showLoginBtn" type="button">เข้าสู่ระบบ</button>
+        <button class="auth-tab" id="showRegisterBtn" type="button">ลงทะเบียน</button>
+      </div>
+
+      <form class="auth-form" id="loginForm">
+        <h2>เข้าสู่ระบบ</h2>
+        <label>
+          ชื่อผู้ใช้งาน
+          <input id="loginName" type="text" autocomplete="username" required>
+        </label>
+        <label>
+          รหัสผ่าน
+          <input id="loginPassword" type="password" autocomplete="current-password" required>
+        </label>
+        <p class="form-message" id="loginMessage" aria-live="polite"></p>
+        <button class="btn primary" type="submit">เข้าสู่ระบบ</button>
+      </form>
+
+      <form class="auth-form hidden" id="registerForm">
+        <h2>ลงทะเบียนผู้ใช้งาน</h2>
+        <label>
+          ชื่อผู้ใช้งาน
+          <input id="registerName" type="text" autocomplete="name" required>
+        </label>
+        <label>
+          แผนก
+          <select id="registerDepartment" required>
+            <option value="">เลือกแผนก</option>
+            <option>ห้องฉุกเฉิน</option>
+            <option>ห้องผ่าตัด</option>
+            <option>ผู้ป่วยใน</option>
+            <option>ห้องตรวจ</option>
+            <option>คลังอุปกรณ์</option>
+            <option>ฝ่ายเครื่องมือแพทย์</option>
+          </select>
+        </label>
+        <label>
+          รหัสผ่าน
+          <input id="registerPassword" type="password" autocomplete="new-password" minlength="4" required>
+        </label>
+        <p class="form-message" id="registerMessage" aria-live="polite"></p>
+        <button class="btn primary" type="submit">สร้างบัญชี</button>
+      </form>
+    </div>
+  </section>
+
+  <section class="app-page hidden" id="appPage">
+    <header class="app-header">
+      <div>
+        <p class="eyebrow">Medical Equipment Manager</p>
+        <h1>ระบบจัดการข้อมูลอุปกรณ์การแพทย์</h1>
+      </div>
+      <div class="header-actions">
+        <div class="user-card">
+          <span id="currentUserName">ผู้ใช้งาน</span>
+          <strong id="currentUserDepartment">แผนก</strong>
+        </div>
+        <div class="header-card">
+          <span class="header-label">จำนวนทั้งหมด</span>
+          <strong id="totalCount">0</strong>
+          <span>รายการ</span>
+        </div>
+        <button class="btn light" id="logoutBtn" type="button">ออกจากระบบ</button>
+      </div>
+    </header>
+
+    <main class="app-shell">
+      <section class="panel form-panel" aria-labelledby="formTitle">
+        <h2 id="formTitle">เพิ่มอุปกรณ์ใหม่</h2>
+        <form id="equipmentForm">
+          <div class="form-grid">
+            <label>
+              ชื่ออุปกรณ์
+              <input id="nameInput" type="text" placeholder="เช่น เครื่องวัดความดัน" required>
+            </label>
+
+            <label>
+              รหัสอุปกรณ์
+              <input id="codeInput" type="text" placeholder="เช่น MED-001" required>
+            </label>
+
+            <label>
+              แผนก
+              <select id="departmentInput" required>
+                <option value="">เลือกแผนก</option>
+                <option>ห้องฉุกเฉิน</option>
+                <option>ห้องผ่าตัด</option>
+                <option>ผู้ป่วยใน</option>
+                <option>ห้องตรวจ</option>
+                <option>คลังอุปกรณ์</option>
+              </select>
+            </label>
+
+            <label>
+              สถานะ
+              <select id="statusInput" required>
+                <option>พร้อมใช้งาน</option>
+                <option>กำลังใช้งาน</option>
+                <option>รอซ่อม</option>
+                <option>ปลดระวาง</option>
+              </select>
+            </label>
+
+            <label>
+              วันที่ตรวจเช็กล่าสุด
+              <input id="checkedInput" type="date" required>
+            </label>
+
+            <label>
+              ผู้รับผิดชอบ
+              <input id="ownerInput" type="text" placeholder="เช่น คุณสมชาย" required>
+            </label>
+          </div>
+
+          <div class="form-actions">
+            <button class="btn primary" type="submit">บันทึกข้อมูล</button>
+            <button class="btn ghost" id="resetFormBtn" type="button">ล้างฟอร์ม</button>
+          </div>
+        </form>
+      </section>
+
+      <section class="panel table-panel" aria-labelledby="tableTitle">
+        <div class="toolbar">
+          <div>
+            <h2 id="tableTitle">รายการอุปกรณ์</h2>
+            <p id="resultText">แสดงรายการทั้งหมด</p>
+          </div>
+          <div class="filters">
+            <input id="searchInput" type="search" placeholder="ค้นหาชื่อ, รหัส, แผนก">
+            <select id="filterStatus">
+              <option value="all">ทุกสถานะ</option>
+              <option>พร้อมใช้งาน</option>
+              <option>กำลังใช้งาน</option>
+              <option>รอซ่อม</option>
+              <option>ปลดระวาง</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="status-summary" id="statusSummary"></div>
+
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>รหัส</th>
+                <th>ชื่ออุปกรณ์</th>
+                <th>แผนก</th>
+                <th>ตรวจล่าสุด</th>
+                <th>ผู้รับผิดชอบ</th>
+                <th>สถานะ</th>
+                <th>จัดการ</th>
+              </tr>
+            </thead>
+            <tbody id="equipmentTable"></tbody>
+          </table>
+        </div>
+
+        <div class="empty-state" id="emptyState" hidden>
+          ยังไม่มีข้อมูลอุปกรณ์ ลองเพิ่มรายการแรกจากฟอร์มด้านบน
+        </div>
+      </section>
+    </main>
+  </section>
+
+  <script src="script.js"></script>
+</body>
+</html>
