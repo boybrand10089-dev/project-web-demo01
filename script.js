@@ -42,6 +42,17 @@ const userSearchInput = document.querySelector("#userSearchInput");
 const userResultText = document.querySelector("#userResultText");
 const userSummary = document.querySelector("#userSummary");
 const resetUserFormBtn = document.querySelector("#resetUserFormBtn");
+const reportResultText = document.querySelector("#reportResultText");
+const reportSummary = document.querySelector("#reportSummary");
+const refreshReportBtn = document.querySelector("#refreshReportBtn");
+const reportCodeSearch = document.querySelector("#reportCodeSearch");
+const reportStartDate = document.querySelector("#reportStartDate");
+const reportEndDate = document.querySelector("#reportEndDate");
+const reportTabs = document.querySelectorAll(".report-tab");
+const reportTableHead = document.querySelector("#reportTableHead");
+const movementResultText = document.querySelector("#movementResultText");
+const movementReportTable = document.querySelector("#movementReportTable");
+const movementEmptyState = document.querySelector("#movementEmptyState");
 
 const fields = {
   name: document.querySelector("#nameInput"),
@@ -73,6 +84,8 @@ const userFields = {
 let equipment = [];
 let stockItems = [];
 let managedUsers = [];
+let movementLogs = [];
+let currentReportType = "import";
 let editingId = null;
 let editingStockId = null;
 let editingUserId = null;
@@ -86,6 +99,7 @@ async function initializeApp() {
   setupEquipmentEvents();
   setupStockEvents();
   setupUserEvents();
+  setupReportEvents();
   clearForm();
   clearStockForm();
   clearUserForm();
@@ -115,6 +129,7 @@ async function loadAppData() {
   render();
   renderStock();
   renderUsers();
+  renderReport();
 }
 
 async function apiRequest(path, options = {}) {
@@ -274,7 +289,24 @@ function setupPageNavigation() {
         await refreshUsers();
       }
 
+      if (targetId === "reportPage") {
+        await refreshReport();
+      }
+
       showAppPage(targetId);
+    });
+  });
+}
+
+function setupReportEvents() {
+  refreshReportBtn.addEventListener("click", refreshReport);
+  reportCodeSearch.addEventListener("input", renderReport);
+  reportStartDate.addEventListener("change", renderReport);
+  reportEndDate.addEventListener("change", renderReport);
+  reportTabs.forEach((tab) => {
+    tab.addEventListener("click", () => {
+      currentReportType = tab.dataset.reportTarget;
+      renderReport();
     });
   });
 }
@@ -308,15 +340,16 @@ function setupStockEvents() {
       code: stockFields.code.value.trim(),
       name: stockFields.name.value.trim(),
       category: stockFields.category.value,
-      initialQuantity: editingStockId
-        ? stockItems.find((current) => current.id === editingStockId)?.initialQuantity || Number(stockFields.quantity.value)
-        : Number(stockFields.quantity.value),
       quantity: Number(stockFields.quantity.value),
       minimum: Number(stockFields.minimum.value),
       unit: stockFields.unit.value.trim(),
       location: stockFields.location.value.trim(),
       updatedDate: stockFields.updatedDate.value
     };
+
+    if (!editingStockId) {
+      item.initialQuantity = item.quantity;
+    }
 
     try {
       if (editingStockId) {
@@ -512,6 +545,25 @@ async function refreshUsers() {
   }
 }
 
+async function refreshReport() {
+  try {
+    const [equipmentData, stockData, movementData] = await Promise.all([
+      apiRequest("/api/equipment"),
+      apiRequest("/api/stock-items"),
+      apiRequest("/api/logmovement")
+    ]);
+
+    equipment = equipmentData;
+    stockItems = stockData;
+    movementLogs = movementData;
+    render();
+    renderStock();
+    renderReport();
+  } catch (error) {
+    alert(`ไม่สามารถโหลดรายงานได้: ${error.message}`);
+  }
+}
+
 function render() {
   const filtered = getFilteredEquipment();
 
@@ -538,6 +590,128 @@ function renderUsers() {
   userEmptyState.hidden = filtered.length > 0;
   userTable.innerHTML = filtered.map(createUserRow).join("");
   renderUserSummary();
+}
+
+function renderReport() {
+  const filteredStockItems = getReportFilteredStockItems();
+  const filteredMovementLogs = getReportFilteredMovementLogs();
+  const totalStockQuantity = filteredStockItems.reduce((sum, item) => sum + item.quantity, 0);
+  const totalInitialQuantity = filteredStockItems.reduce((sum, item) => sum + (item.initialQuantity || 0), 0);
+  const lowCount = filteredStockItems.filter((item) => getStockStatus(item) === "low").length;
+  const importLogs = filteredMovementLogs.filter((log) => log.movementType === "IN");
+  const issueLogs = filteredMovementLogs.filter((log) => log.movementType === "OUT");
+  const reportConfig = getReportConfig(filteredStockItems, filteredMovementLogs);
+  const rows = reportConfig.rows.slice(0, 50);
+
+  reportResultText.textContent = `อัปเดตล่าสุด ${new Intl.DateTimeFormat("th-TH", {
+    dateStyle: "medium",
+    timeStyle: "short"
+  }).format(new Date())}`;
+
+  reportTabs.forEach((tab) => {
+    tab.classList.toggle("active", tab.dataset.reportTarget === currentReportType);
+  });
+
+  reportSummary.innerHTML = `
+    <div class="summary-item">
+      <span>อุปกรณ์ทั้งหมด</span>
+      <strong>${equipment.length}</strong>
+    </div>
+    <div class="summary-item">
+      <span>สินค้าในคลัง</span>
+      <strong>${filteredStockItems.length}</strong>
+    </div>
+    <div class="summary-item ok">
+      <span>รับเข้าครั้งแรก</span>
+      <strong>${totalInitialQuantity}</strong>
+    </div>
+    <div class="summary-item warning">
+      <span>คงเหลือรวม / ต่ำขั้นต่ำ ${lowCount}</span>
+      <strong>${totalStockQuantity}</strong>
+    </div>
+    <div class="summary-item">
+      <span>รับเข้า ${importLogs.length} / เบิกออก ${issueLogs.length}</span>
+      <strong>${filteredMovementLogs.length}</strong>
+    </div>
+  `;
+
+  document.querySelector("#movementReportTitle").textContent = reportConfig.title;
+  movementResultText.textContent = `แสดง ${rows.length} จาก ${reportConfig.rows.length} รายการ`;
+  reportTableHead.innerHTML = reportConfig.headers.map((header) => `<th>${header}</th>`).join("");
+  movementEmptyState.hidden = rows.length > 0;
+  movementReportTable.innerHTML = rows.map(reportConfig.createRow).join("");
+}
+
+function getReportConfig(filteredStockItems, filteredMovementLogs) {
+  if (currentReportType === "issue") {
+    const rows = filteredMovementLogs.filter((log) => log.movementType === "OUT");
+    return {
+      title: "รายงานเบิกจ่าย",
+      headers: ["วันที่", "รหัสสินค้า", "สินค้า", "จำนวนเบิก", "ก่อน", "หลัง", "ผู้เบิก"],
+      rows,
+      createRow: createIssueReportRow
+    };
+  }
+
+  if (currentReportType === "balance") {
+    return {
+      title: "รายงานคงเหลือ",
+      headers: ["รหัสสินค้า", "สินค้า", "รับเข้าครั้งแรก", "คงเหลือ", "ขั้นต่ำ", "สถานะ", "ตำแหน่ง"],
+      rows: filteredStockItems,
+      createRow: createBalanceReportRow
+    };
+  }
+
+  if (currentReportType === "movement") {
+    return {
+      title: "รายงานการเคลื่อนไหวการเบิกจ่าย",
+      headers: ["วันที่", "รหัสสินค้า", "สินค้า", "ประเภท", "จำนวน", "ก่อน", "หลัง", "ผู้ทำรายการ"],
+      rows: filteredMovementLogs,
+      createRow: createMovementRow
+    };
+  }
+
+  const rows = filteredMovementLogs.filter((log) => log.movementType === "IN");
+  return {
+    title: "รายงานนำเข้า",
+    headers: ["วันที่", "รหัสสินค้า", "สินค้า", "จำนวนนำเข้า", "ก่อน", "หลัง", "ผู้ทำรายการ"],
+    rows,
+    createRow: createImportReportRow
+  };
+}
+
+function getReportFilteredMovementLogs() {
+  const codeKeyword = reportCodeSearch.value.trim().toLowerCase();
+
+  return movementLogs.filter((log) => {
+    const matchesCode = !codeKeyword || String(log.stockCode).toLowerCase().includes(codeKeyword);
+    return matchesCode && isDateInReportRange(log.createdAt);
+  });
+}
+
+function getReportFilteredStockItems() {
+  const codeKeyword = reportCodeSearch.value.trim().toLowerCase();
+
+  return stockItems.filter((item) => {
+    const matchesCode = !codeKeyword || String(item.code).toLowerCase().includes(codeKeyword);
+    return matchesCode && isDateInReportRange(item.updatedDate);
+  });
+}
+
+function isDateInReportRange(value) {
+  const date = dateOnly(value);
+  const start = reportStartDate.value;
+  const end = reportEndDate.value;
+
+  if (start && date < start) {
+    return false;
+  }
+
+  if (end && date > end) {
+    return false;
+  }
+
+  return true;
 }
 
 function getFilteredEquipment() {
@@ -642,6 +816,69 @@ function createUserRow(user) {
           <button class="btn danger small" type="button" data-action="user-delete" data-id="${user.id}">ลบ</button>
         </div>
       </td>
+    </tr>
+  `;
+}
+
+function createMovementRow(log) {
+  const typeText = log.movementType === "IN" ? "รับเข้า" : "เบิกออก";
+  const typeClass = log.movementType === "IN" ? "move-in" : "move-out";
+
+  return `
+    <tr>
+      <td>${formatDateTime(log.createdAt)}</td>
+      <td>${escapeHtml(log.stockCode)}</td>
+      <td>${escapeHtml(log.stockName)}</td>
+      <td><span class="badge ${typeClass}">${typeText}</span></td>
+      <td>${log.quantity}</td>
+      <td>${log.quantityBefore}</td>
+      <td>${log.quantityAfter}</td>
+      <td>${escapeHtml(log.performedByName || "-")}</td>
+    </tr>
+  `;
+}
+
+function createImportReportRow(log) {
+  return `
+    <tr>
+      <td>${formatDateTime(log.createdAt)}</td>
+      <td>${escapeHtml(log.stockCode)}</td>
+      <td>${escapeHtml(log.stockName)}</td>
+      <td>${log.quantity}</td>
+      <td>${log.quantityBefore}</td>
+      <td>${log.quantityAfter}</td>
+      <td>${escapeHtml(log.performedByName || "-")}</td>
+    </tr>
+  `;
+}
+
+function createIssueReportRow(log) {
+  return `
+    <tr>
+      <td>${formatDateTime(log.createdAt)}</td>
+      <td>${escapeHtml(log.stockCode)}</td>
+      <td>${escapeHtml(log.stockName)}</td>
+      <td>${log.quantity}</td>
+      <td>${log.quantityBefore}</td>
+      <td>${log.quantityAfter}</td>
+      <td>${escapeHtml(log.performedByName || "-")}</td>
+    </tr>
+  `;
+}
+
+function createBalanceReportRow(item) {
+  const stockStatus = getStockStatus(item);
+  const statusText = getStockStatusText(stockStatus);
+
+  return `
+    <tr>
+      <td>${escapeHtml(item.code)}</td>
+      <td>${escapeHtml(item.name)}</td>
+      <td>${item.initialQuantity || 0}</td>
+      <td>${item.quantity}</td>
+      <td>${item.minimum}</td>
+      <td><span class="badge stock-${stockStatus}">${statusText}</span></td>
+      <td>${escapeHtml(item.location)}</td>
     </tr>
   `;
 }
@@ -979,6 +1216,16 @@ function formatDate(value) {
     year: "numeric",
     month: "short",
     day: "numeric"
+  }).format(new Date(value));
+}
+
+function formatDateTime(value) {
+  return new Intl.DateTimeFormat("th-TH", {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit"
   }).format(new Date(value));
 }
 

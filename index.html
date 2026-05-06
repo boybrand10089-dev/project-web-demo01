@@ -119,6 +119,7 @@
         <nav>
           <button class="page-tab active" type="button" data-page-target="equipmentPage">รายการอุปกรณ์</button>
           <button class="page-tab" type="button" data-page-target="stockPage">คลังสินค้า</button>
+          <button class="page-tab" type="button" data-page-target="reportPage">Report</button>
           <button class="page-tab admin-only hidden" type="button" data-page-target="userPage">User Management</button>
         </nav>
       </aside>
@@ -402,6 +403,53 @@
 
             <div class="empty-state" id="userEmptyState" hidden>
               ยังไม่มีข้อมูลผู้เข้าใช้งาน
+            </div>
+          </section>
+        </main>
+
+        <main class="app-shell app-view hidden" id="reportPage">
+          <section class="panel table-panel" aria-labelledby="reportTitle">
+            <div class="toolbar">
+              <div>
+                <h2 id="reportTitle">Report</h2>
+                <p id="reportResultText">สรุปภาพรวมระบบ</p>
+              </div>
+              <div class="filters">
+                <input id="reportCodeSearch" type="search" placeholder="ค้นหารหัสสินค้า">
+                <input id="reportStartDate" type="date" aria-label="วันที่เริ่มต้น">
+                <input id="reportEndDate" type="date" aria-label="วันที่สิ้นสุด">
+                <button class="btn ghost" id="refreshReportBtn" type="button">รีเฟรชรายงาน</button>
+              </div>
+            </div>
+
+            <div class="report-summary" id="reportSummary"></div>
+            <div class="report-tabs" role="tablist" aria-label="ประเภทรายงาน">
+              <button class="report-tab active" type="button" data-report-target="import">รายงานนำเข้า</button>
+              <button class="report-tab" type="button" data-report-target="issue">รายงานเบิกจ่าย</button>
+              <button class="report-tab" type="button" data-report-target="balance">รายงานคงเหลือ</button>
+              <button class="report-tab" type="button" data-report-target="movement">รายงานการเคลื่อนไหวการเบิกจ่าย</button>
+            </div>
+          </section>
+
+          <section class="panel table-panel" aria-labelledby="movementReportTitle">
+            <div class="toolbar">
+              <div>
+                <h2 id="movementReportTitle">รายงานนำเข้า</h2>
+                <p id="movementResultText">แสดงข้อมูลรายงาน</p>
+              </div>
+            </div>
+
+            <div class="table-wrap">
+              <table id="reportTable">
+                <thead>
+                  <tr id="reportTableHead"></tr>
+                </thead>
+                <tbody id="movementReportTable"></tbody>
+              </table>
+            </div>
+
+            <div class="empty-state" id="movementEmptyState" hidden>
+              ยังไม่มีประวัติรับเข้า/เบิกออกสินค้า
             </div>
           </section>
         </main>

@@ -315,10 +315,9 @@ app.post("/api/stock-items", async (req, res, next) => {
 app.put("/api/stock-items/:id", async (req, res, next) => {
   try {
     const { code, name, category, quantity, minimum, unit, location, updatedDate } = req.body;
-    const initialQuantity = Number(req.body.initialQuantity ?? quantity ?? 0);
     await pool.execute(
-      "UPDATE stock_items SET code = ?, name = ?, category = ?, initial_quantity = ?, quantity = ?, minimum_quantity = ?, unit = ?, location = ?, updated_date = ? WHERE id = ?",
-      [code, name, category, initialQuantity, quantity, minimum, unit, location, updatedDate, req.params.id]
+      "UPDATE stock_items SET code = ?, name = ?, category = ?, quantity = ?, minimum_quantity = ?, unit = ?, location = ?, updated_date = ? WHERE id = ?",
+      [code, name, category, quantity, minimum, unit, location, updatedDate, req.params.id]
     );
     const [rows] = await pool.execute("SELECT * FROM stock_items WHERE id = ?", [req.params.id]);
     res.json(stockRow(rows[0]));
